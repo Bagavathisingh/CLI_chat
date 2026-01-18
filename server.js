@@ -3,7 +3,7 @@ const net = require('net');
 const chalk = require('chalk');
 
 const clients = [];
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const server = net.createServer((socket) => {
     socket.setEncoding('utf8');
