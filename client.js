@@ -12,7 +12,6 @@ let username = '';
 let roomName = '';
 let secretKey = '';
 
-// Helper to derive a 32-byte key from the secret
 const getDerivedKey = (secret) => {
     return crypto.scryptSync(secret, 'salt', 32);
 };
@@ -126,7 +125,6 @@ rl.question(chalk.cyan('Enter your username: '), (user) => {
                             console.log(chalk.green.bold(`[CONNECTED] Room: ${roomName}`));
                             console.log(chalk.gray('Messages are end-to-end encrypted.\n'));
 
-                            // Send join request with newline
                             client.write(JSON.stringify({ type: 'join', room: roomName }) + '\n');
                             rl.prompt();
                         });

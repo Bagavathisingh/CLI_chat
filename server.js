@@ -8,7 +8,6 @@ const PORT = 3000;
 const server = net.createServer((socket) => {
     socket.setEncoding('utf8');
 
-    // Local metadata for this connection
     let clientInfo = { socket, room: null };
     clients.push(clientInfo);
 
@@ -19,7 +18,7 @@ const server = net.createServer((socket) => {
     socket.on('data', (data) => {
         buffer += data;
         let lines = buffer.split('\n');
-        buffer = lines.pop(); // Keep the last incomplete line in the buffer
+        buffer = lines.pop();
 
         for (let line of lines) {
             line = line.trim();
@@ -33,7 +32,6 @@ const server = net.createServer((socket) => {
                     console.log(chalk.yellow(`[SERVER] User joined room: ${chalk.bold(payload.room)}`));
                 } else if (payload.type === 'chat' && clientInfo.room) {
                     console.log(chalk.gray(`[SERVER] Received message for room: ${clientInfo.room}`));
-                    // Broadcast ONLY to clients in the same room
                     let broadcastCount = 0;
                     clients.forEach((c) => {
                         if (c.socket !== socket && c.room === clientInfo.room && !c.socket.destroyed) {
@@ -68,14 +66,7 @@ const server = net.createServer((socket) => {
 
 server.listen(PORT, () => {
     console.clear();
-    console.log(chalk.yellow(`
-  ██████╗██╗     ██╗    ██████╗██╗  ██╗ █████╗ ████████╗
- ██╔════╝██║     ██║   ██╔════╝██║  ██║██╔══██╗╚══██╔══╝
- ██║     ██║     ██║   ██║     ███████║███████║   ██║   
- ██║     ██║     ██║   ██║     ██╔══██║██╔══██╗   ██║   
- ╚██████╗███████╗██║   ╚██████╗██║  ██║██║  ██║   ██║   
-  ╚═════╝╚══════╝╚═╝    ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   
-    `));
+    console.log(chalk.yellow(`CLI_CHAT`));
     console.log(chalk.yellow.bold(`   SERVER RUNNING ON PORT: ${PORT}   `));
     console.log(chalk.gray(`   Room-based secure broadcasting active...\n`));
     console.log(chalk.yellow.bold(`   Created by BUGZX\n`));
