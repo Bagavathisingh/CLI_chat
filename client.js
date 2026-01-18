@@ -4,8 +4,8 @@ const readline = require('readline');
 const chalk = require('chalk');
 const crypto = require('crypto');
 
-const PORT_DEFAULT = 3000;
-const DEFAULT_HOST = 'localhost'; // Change this to your deployed server URL later!
+const PORT_DEFAULT = 443;
+const DEFAULT_HOST = 'cli-chat-dsfi.onrender.com';
 let HOST = DEFAULT_HOST;
 const ALGORITHM = 'aes-128-cbc';
 
