@@ -1,5 +1,5 @@
 {
-  "name": "bugzx-secure-chat",
+  "name": "@chat_cli/bugzx-secure-chat",
   "version": "1.0.0",
   "description": "A high-security, end-to-end encrypted CLI chat tool with room support.",
   "main": "index.js",
