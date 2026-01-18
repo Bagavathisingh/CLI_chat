@@ -1,9 +1,18 @@
 #!/usr/bin/env node
+const http = require('http');
 const WebSocket = require('ws');
 const chalk = require('chalk');
 
 const PORT = process.env.PORT || 3000;
-const wss = new WebSocket.Server({ port: PORT });
+
+// 1. Create a standard HTTP server to satisfy Render's health checks
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end(' Secure Chat Server is Online');
+});
+
+// 2. Attach WebSocket server to the SAME port
+const wss = new WebSocket.Server({ server });
 
 const rooms = new Map();
 
@@ -22,40 +31,31 @@ wss.on('connection', (ws) => {
                 rooms.get(clientRoom).add(ws);
                 console.log(chalk.yellow(`[SERVER] User joined room: ${chalk.bold(clientRoom)}`));
             } else if (payload.type === 'chat' && clientRoom) {
-                console.log(chalk.gray(`[SERVER] Received message for room: ${clientRoom}`));
                 const clientsInRoom = rooms.get(clientRoom);
                 if (clientsInRoom) {
-                    let broadcastCount = 0;
                     clientsInRoom.forEach((client) => {
                         if (client !== ws && client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({ type: 'chat', message: payload.message }));
-                            broadcastCount++;
                         }
                     });
-                    console.log(chalk.gray(`[SERVER] Broadcasted to ${broadcastCount} other clients.`));
                 }
             }
-        } catch (e) {
-        }
+        } catch (e) { }
     });
 
     ws.on('close', () => {
         if (clientRoom && rooms.has(clientRoom)) {
             rooms.get(clientRoom).delete(ws);
-            if (rooms.get(clientRoom).size === 0) {
-                rooms.delete(clientRoom);
-            }
         }
         console.log(chalk.red(`[SERVER] Client disconnected.`));
     });
-
-    ws.on('error', (err) => {
-        console.error(chalk.red(`[SERVER ERROR] ${err.message}`));
-    });
 });
 
-console.clear();
-console.log(chalk.yellow(`CLI_CHAT (WebSocket Mode)`));
-console.log(chalk.yellow.bold(`   SERVER RUNNING ON PORT: ${PORT}   `));
-console.log(chalk.gray(`   Room-based secure broadcasting active...\n`));
-console.log(chalk.yellow.bold(`   Created by BUGZX\n`));
+// 3. Start listening
+server.listen(PORT, () => {
+    console.clear();
+    console.log(chalk.yellow(`CLI_CHAT (Hybrid WebSocket/HTTP Mode)`));
+    console.log(chalk.green.bold(`   SERVER RUNNING ON PORT: ${PORT}   `));
+    console.log(chalk.gray(`   Health Checks Active & Secure broadcasting ready...\n`));
+    console.log(chalk.yellow.bold(`   Created by BUGZX\n`));
+});
