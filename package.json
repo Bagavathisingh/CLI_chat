@@ -1,5 +1,5 @@
 {
-  "name": "@chat_cli/bugzx-secure-chat",
+  "name": "@chat_cli/bugzx-chat",
   "version": "1.0.2",
   "description": "A high-security, end-to-end encrypted CLI chat tool with room support.",
   "main": "index.js",
@@ -23,8 +23,7 @@
   "author": "Bagavathisingh",
   "license": "ISC",
   "dependencies": {
-    "chalk": "^4.1.2",
-    "net": "^1.0.2"
+    "chalk": "^4.1.2"
   },
   "files": [
     "server.js",
