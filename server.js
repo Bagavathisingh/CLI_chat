@@ -25,6 +25,11 @@ const server = net.createServer((socket) => {
             if (!line) continue;
 
             try {
+                // Ignore HTTP Health Checks (probes from Render)
+                if (line.startsWith('HEAD /') || line.startsWith('GET /') || line.startsWith('Host:')) {
+                    continue;
+                }
+
                 const payload = JSON.parse(line);
 
                 if (payload.type === 'join') {
