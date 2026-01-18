@@ -4,7 +4,7 @@ const readline = require('readline');
 const chalk = require('chalk');
 const crypto = require('crypto');
 
-const PORT_DEFAULT = 443;
+const PORT_DEFAULT = 10000;
 const DEFAULT_HOST = 'cli-chat-dsfi.onrender.com';
 let HOST = DEFAULT_HOST;
 const ALGORITHM = 'aes-128-cbc';
@@ -104,10 +104,10 @@ renderHeader();
 rl.question(chalk.cyan('Enter your username: '), (user) => {
     username = user.trim() || 'Anonymous';
 
-    rl.question(chalk.cyan(`Enter Server IP (press Enter for ${DEFAULT_HOST}): `), (ip) => {
+    rl.question(chalk.cyan(`Enter Server IP : `), (ip) => {
         HOST = ip.trim() || DEFAULT_HOST;
 
-        rl.question(chalk.cyan('Enter Server Port (press Enter for 3000): '), (portInput) => {
+        rl.question(chalk.cyan('Enter Server Port : '), (portInput) => {
             const TARGET_PORT = parseInt(portInput.trim()) || PORT_DEFAULT;
 
             showMenu(['Create a Room', 'Join a Room'], (choiceIdx) => {
