@@ -7,14 +7,14 @@ const crypto = require('crypto');
 const PORT_DEFAULT = 3000;
 const DEFAULT_HOST = 'localhost'; // Change this to your deployed server URL later!
 let HOST = DEFAULT_HOST;
-const ALGORITHM = 'aes-256-cbc';
+const ALGORITHM = 'aes-128-cbc';
 
 let username = '';
 let roomName = '';
 let secretKey = '';
 
 const getDerivedKey = (secret) => {
-    return crypto.scryptSync(secret, 'salt', 32);
+    return crypto.createHash('md5').update(secret).digest();
 };
 
 const encrypt = (text, key) => {
