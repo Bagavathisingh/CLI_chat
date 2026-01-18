@@ -5,7 +5,8 @@ const chalk = require('chalk');
 const crypto = require('crypto');
 
 const PORT_DEFAULT = 3000;
-let HOST = 'localhost';
+const DEFAULT_HOST = 'localhost'; // Change this to your deployed server URL later!
+let HOST = DEFAULT_HOST;
 const ALGORITHM = 'aes-256-cbc';
 
 let username = '';
@@ -103,8 +104,8 @@ renderHeader();
 rl.question(chalk.cyan('Enter your username: '), (user) => {
     username = user.trim() || 'Anonymous';
 
-    rl.question(chalk.cyan('Enter Server IP (press Enter for localhost): '), (ip) => {
-        HOST = ip.trim() || 'localhost';
+    rl.question(chalk.cyan(`Enter Server IP (press Enter for ${DEFAULT_HOST}): `), (ip) => {
+        HOST = ip.trim() || DEFAULT_HOST;
 
         rl.question(chalk.cyan('Enter Server Port (press Enter for 3000): '), (portInput) => {
             const TARGET_PORT = parseInt(portInput.trim()) || PORT_DEFAULT;
