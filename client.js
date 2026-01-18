@@ -1,20 +1,17 @@
 #!/usr/bin/env node
-const net = require('net');
+const WebSocket = require('ws');
 const readline = require('readline');
 const chalk = require('chalk');
 const crypto = require('crypto');
 
-const PUBLIC_HOST = 'cli-chat-dsfi.onrender.com';
-const PUBLIC_PORT = 10000;
-const LOCAL_HOST = 'localhost';
-const LOCAL_PORT = 3000;
+const PUBLIC_URL = 'wss://cli-chat-dsfi.onrender.com';
+const LOCAL_URL = 'ws://localhost:3000';
 const ALGORITHM = 'aes-128-cbc';
 
 let username = '';
 let roomName = '';
 let secretKey = '';
-let currentHost = '';
-let currentPort = 0;
+let currentWs = null;
 
 const getDerivedKey = (secret) => {
     return crypto.createHash('md5').update(secret).digest();
@@ -108,13 +105,7 @@ rl.question(chalk.cyan('Enter your username: '), (user) => {
     username = user.trim() || 'Anonymous';
 
     showMenu(['Local Mode (localhost)', 'Public Mode (Online Server)'], (modeIdx) => {
-        if (modeIdx === 0) {
-            currentHost = LOCAL_HOST;
-            currentPort = LOCAL_PORT;
-        } else {
-            currentHost = PUBLIC_HOST;
-            currentPort = PUBLIC_PORT;
-        }
+        const targetUrl = modeIdx === 0 ? LOCAL_URL : PUBLIC_URL;
 
         showMenu(['Create a Room', 'Join a Room'], (choiceIdx) => {
             renderHeader();
@@ -127,56 +118,49 @@ rl.question(chalk.cyan('Enter your username: '), (user) => {
                 rl.question(chalk.cyan('Enter Secret Room Key: '), (key) => {
                     secretKey = getDerivedKey(key || 'default-secret');
 
-                    const client = net.createConnection({ port: currentPort, host: currentHost }, () => {
+                    currentWs = new WebSocket(targetUrl);
+
+                    currentWs.on('open', () => {
                         renderHeader();
                         console.log(chalk.green.bold(`[CONNECTED] Room: ${roomName} (${modeIdx === 0 ? 'Local' : 'Public'})`));
                         console.log(chalk.gray('Messages are end-to-end encrypted. Type "/exit" to leave.\n'));
 
-                        client.write(JSON.stringify({ type: 'join', room: roomName }) + '\n');
+                        currentWs.send(JSON.stringify({ type: 'join', room: roomName }));
                         rl.prompt();
                     });
 
-                    client.setEncoding('utf8');
-
-                    let incomingBuffer = '';
-                    client.on('data', (data) => {
-                        incomingBuffer += data;
-                        let lines = incomingBuffer.split('\n');
-                        incomingBuffer = lines.pop();
-
-                        for (let line of lines) {
-                            const message = line.trim();
-                            if (!message) continue;
-
-                            const decryptedMessage = decrypt(message, secretKey);
-                            if (decryptedMessage) {
-                                readline.cursorTo(process.stdout, 0);
-                                readline.clearLine(process.stdout, 0);
-                                const timestamp = chalk.gray(`[${new Date().toLocaleTimeString()}] `);
-                                process.stdout.write(`${timestamp}${decryptedMessage}\n`);
-                                rl.prompt(true);
-                            } else {
-                                readline.cursorTo(process.stdout, 0);
-                                readline.clearLine(process.stdout, 0);
-                                console.log(chalk.red('[SYSTEM] Received encrypted message but failed to decrypt. Check your Secret Key!'));
-                                rl.prompt(true);
+                    currentWs.on('message', (data) => {
+                        try {
+                            const payload = JSON.parse(data);
+                            if (payload.type === 'chat') {
+                                const decryptedMessage = decrypt(payload.message, secretKey);
+                                if (decryptedMessage) {
+                                    readline.cursorTo(process.stdout, 0);
+                                    readline.clearLine(process.stdout, 0);
+                                    const timestamp = chalk.gray(`[${new Date().toLocaleTimeString()}] `);
+                                    process.stdout.write(`${timestamp}${decryptedMessage}\n`);
+                                    rl.prompt(true);
+                                } else {
+                                    readline.cursorTo(process.stdout, 0);
+                                    readline.clearLine(process.stdout, 0);
+                                    console.log(chalk.red('[SYSTEM] Received encrypted message but failed to decrypt. Check your Secret Key!'));
+                                    rl.prompt(true);
+                                }
                             }
+                        } catch (e) {
+                            // Invalid JSON
                         }
                     });
 
-                    client.on('end', () => {
+                    currentWs.on('close', () => {
                         console.log(chalk.red('\n[DISCONNECTED] Server connection closed.'));
                         process.exit();
                     });
 
-                    client.on('error', (err) => {
+                    currentWs.on('error', (err) => {
                         readline.cursorTo(process.stdout, 0);
                         readline.clearLine(process.stdout, 0);
-                        if (err.code === 'ECONNRESET') {
-                            console.log(chalk.red('\n[LOST CONNECTION] The server was restarted or the connection was lost.'));
-                        } else {
-                            console.error(chalk.red(`\n[ERROR] ${err.message}`));
-                        }
+                        console.error(chalk.red(`\n[CONNECTION ERROR] ${err.message}`));
                         process.exit();
                     });
 
@@ -185,7 +169,7 @@ rl.question(chalk.cyan('Enter your username: '), (user) => {
                         process.stdout.write('\x1B[1A\x1B[2K');
 
                         if (message.toLowerCase() === '/exit') {
-                            client.end();
+                            currentWs.close();
                             return;
                         }
                         if (message.toLowerCase() === '/cls') {
@@ -194,10 +178,10 @@ rl.question(chalk.cyan('Enter your username: '), (user) => {
                             rl.prompt();
                             return;
                         }
-                        if (message) {
+                        if (message && currentWs.readyState === WebSocket.OPEN) {
                             const formattedMessage = `${chalk.green.bold(username)}: ${message}`;
                             const encryptedMessage = encrypt(formattedMessage, secretKey);
-                            client.write(JSON.stringify({ type: 'chat', message: encryptedMessage }) + '\n');
+                            currentWs.send(JSON.stringify({ type: 'chat', message: encryptedMessage }));
                         }
                         rl.prompt();
                     });

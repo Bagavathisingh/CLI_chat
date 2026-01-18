@@ -1,78 +1,61 @@
 #!/usr/bin/env node
-const net = require('net');
+const WebSocket = require('ws');
 const chalk = require('chalk');
 
-const clients = [];
 const PORT = process.env.PORT || 3000;
+const wss = new WebSocket.Server({ port: PORT });
 
-const server = net.createServer((socket) => {
-    socket.setEncoding('utf8');
+const rooms = new Map();
 
-    let clientInfo = { socket, room: null };
-    clients.push(clientInfo);
+wss.on('connection', (ws) => {
+    let clientRoom = null;
 
-    console.log(chalk.green(`[SERVER] New connection from ${socket.remoteAddress}:${socket.remotePort}`));
+    ws.on('message', (data) => {
+        try {
+            const payload = JSON.parse(data);
 
-    let buffer = '';
-
-    socket.on('data', (data) => {
-        buffer += data;
-        let lines = buffer.split('\n');
-        buffer = lines.pop();
-
-        for (let line of lines) {
-            line = line.trim();
-            if (!line) continue;
-
-            try {
-                // Ignore HTTP Health Checks (probes from Render)
-                if (line.startsWith('HEAD /') || line.startsWith('GET /') || line.startsWith('Host:')) {
-                    continue;
+            if (payload.type === 'join') {
+                clientRoom = payload.room;
+                if (!rooms.has(clientRoom)) {
+                    rooms.set(clientRoom, new Set());
                 }
-
-                const payload = JSON.parse(line);
-
-                if (payload.type === 'join') {
-                    clientInfo.room = payload.room;
-                    console.log(chalk.yellow(`[SERVER] User joined room: ${chalk.bold(payload.room)}`));
-                } else if (payload.type === 'chat' && clientInfo.room) {
-                    console.log(chalk.gray(`[SERVER] Received message for room: ${clientInfo.room}`));
+                rooms.get(clientRoom).add(ws);
+                console.log(chalk.yellow(`[SERVER] User joined room: ${chalk.bold(clientRoom)}`));
+            } else if (payload.type === 'chat' && clientRoom) {
+                console.log(chalk.gray(`[SERVER] Received message for room: ${clientRoom}`));
+                const clientsInRoom = rooms.get(clientRoom);
+                if (clientsInRoom) {
                     let broadcastCount = 0;
-                    clients.forEach((c) => {
-                        if (c.socket !== socket && c.room === clientInfo.room && !c.socket.destroyed) {
-                            c.socket.write(payload.message + '\n');
+                    clientsInRoom.forEach((client) => {
+                        if (client !== ws && client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({ type: 'chat', message: payload.message }));
                             broadcastCount++;
                         }
                     });
                     console.log(chalk.gray(`[SERVER] Broadcasted to ${broadcastCount} other clients.`));
                 }
-            } catch (e) {
-                console.error(chalk.red(`[SERVER ERROR] Failed to parse JSON: ${line.substring(0, 20)}...`));
             }
+        } catch (e) {
         }
     });
 
-    socket.on('end', () => {
-        const index = clients.findIndex(c => c.socket === socket);
-        if (index !== -1) {
-            clients.splice(index, 1);
+    ws.on('close', () => {
+        if (clientRoom && rooms.has(clientRoom)) {
+            rooms.get(clientRoom).delete(ws);
+            if (rooms.get(clientRoom).size === 0) {
+                rooms.delete(clientRoom);
+            }
         }
         console.log(chalk.red(`[SERVER] Client disconnected.`));
     });
 
-    socket.on('error', (err) => {
+    ws.on('error', (err) => {
         console.error(chalk.red(`[SERVER ERROR] ${err.message}`));
-        const index = clients.findIndex(c => c.socket === socket);
-        if (index !== -1) {
-            clients.splice(index, 1);
-        }
     });
 });
 
-server.listen(PORT, () => {
-    console.clear();
-    console.log(chalk.yellow(`CLI_CHAT`));
-    console.log(chalk.yellow.bold(`   SERVER RUNNING ON PORT: ${PORT}   `));
-    console.log(chalk.gray(`   Room-based secure broadcasting active...\n`));
-    console.log(chalk.yellow.bold(`   Created by BUGZX\n`));
-});
+console.clear();
+console.log(chalk.yellow(`CLI_CHAT (WebSocket Mode)`));
+console.log(chalk.yellow.bold(`   SERVER RUNNING ON PORT: ${PORT}   `));
+console.log(chalk.gray(`   Room-based secure broadcasting active...\n`));
+console.log(chalk.yellow.bold(`   Created by BUGZX\n`));
