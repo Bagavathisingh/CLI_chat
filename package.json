@@ -23,7 +23,8 @@
   "author": "Bagavathisingh",
   "license": "ISC",
   "dependencies": {
-    "chalk": "^4.1.2"
+    "chalk": "^4.1.2",
+    "ws": "^8.19.0"
   },
   "files": [
     "server.js",
