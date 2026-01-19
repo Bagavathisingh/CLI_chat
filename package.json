@@ -1,6 +1,6 @@
 {
   "name": "@chat_cli/bugzx-chat",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "A high-security, end-to-end encrypted CLI chat tool with room support.",
   "main": "index.js",
   "bin": {
