@@ -265,7 +265,7 @@ function connectToRoom(targetUrl, modeName, hostDetails = null) {
         console.log(chalk.green.bold(`[CONNECTED] Room: ${roomName} (${modeName})`));
         console.log(chalk.gray('Messages are end-to-end encrypted.\n'));
 
- 
+
         if (hostDetails && showHostPanel) {
             console.log(chalk.cyan.bold('┌──────────────── HOST PANEL ────────────────┐'));
             console.log(chalk.cyan.bold('│') + chalk.white(` Join Code : ${chalk.bold(hostDetails.code.padEnd(28))} `) + chalk.cyan.bold('│'));
@@ -276,9 +276,6 @@ function connectToRoom(targetUrl, modeName, hostDetails = null) {
             console.log(chalk.gray(' [Type /info to view Room Code & Key] \n'));
         }
 
-        // Print History
-        // We limit history to fit reasonable screen space if needed, 
-        // but for now let's just print all (scrolling handles it)
         const maxHistory = 50;
         const visibleHistory = chatHistory.slice(-maxHistory);
 
@@ -286,11 +283,9 @@ function connectToRoom(targetUrl, modeName, hostDetails = null) {
             process.stdout.write(msg + '\n');
         });
 
-        // Ensure prompt is at bottom
         rl.prompt(true);
     };
 
-    // Helper to log a message
     const logMessage = (msg) => {
         chatHistory.push(msg);
         drawUI();
@@ -308,7 +303,18 @@ function connectToRoom(targetUrl, modeName, hostDetails = null) {
                 const decryptedMessage = decrypt(payload.message, secretKey);
                 if (decryptedMessage) {
                     const timestamp = chalk.gray(`[${new Date().toLocaleTimeString()}] `);
-                    logMessage(`${timestamp}${decryptedMessage}`);
+
+                    const prefix = `${username}:`;
+                    let displayMsg = decryptedMessage;
+
+                    if (decryptedMessage.startsWith(prefix)) {
+                        displayMsg = decryptedMessage.replace(prefix, chalk.green.bold('You:'));
+                    } else {
+                    }
+
+                    logMessage(`${timestamp}${displayMsg}`);
+                } else {
+                    logMessage(chalk.red.italic(`[SYSTEM] Decryption Failed: Incorrect Secret Key`));
                 }
             } else if (payload.type === 'system') {
                 logMessage(chalk.yellow(`[SYSTEM] ${payload.message}`));
@@ -330,10 +336,6 @@ function connectToRoom(targetUrl, modeName, hostDetails = null) {
 
     rl.on('line', (line) => {
         const message = line.trim();
-
-        // Don't print the input line itself (readline does it, but we clear it in drawUI anyway)
-        // Ideally we want to prevent double-printing. 
-        // process.stdout.write('\x1B[1A\x1B[2K'); // Clear input line
 
         if (message.toLowerCase() === '/exit') {
             currentWs.close();
@@ -363,7 +365,8 @@ function connectToRoom(targetUrl, modeName, hostDetails = null) {
 
             // Log locally (Echo)
             const timestamp = chalk.gray(`[${new Date().toLocaleTimeString()}] `);
-            logMessage(`${timestamp}${formattedMessage}`);
+            const myDisplayMsg = `${chalk.green.bold('You')}: ${message}`;
+            logMessage(`${timestamp}${myDisplayMsg}`);
         } else {
             // refresh ui if empty line
             drawUI();

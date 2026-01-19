@@ -55,7 +55,18 @@ wss.on('connection', (ws) => {
 
     ws.on('close', () => {
         if (clientRoom && rooms.has(clientRoom)) {
-            rooms.get(clientRoom).delete(ws);
+            const roomUsers = rooms.get(clientRoom);
+            roomUsers.delete(ws);
+
+            roomUsers.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({ type: 'system', message: 'A user left the room.' }));
+                }
+            });
+
+            if (roomUsers.size === 0) {
+                rooms.delete(clientRoom);
+            }
         }
         console.log(chalk.red(`[SERVER] Client disconnected.`));
     });
