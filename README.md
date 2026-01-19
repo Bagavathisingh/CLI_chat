@@ -33,15 +33,25 @@ bugzx-chat
 5.  **Room Name**: Specify the unique name for your private space.
 6.  **Secret Key**: Enter your encryption passphrase. Only users with the exact same Room Name and Secret Key can decrypt and read the messages.
 
+### LAN / Hotspot Mode (Offline) 🌐
+Perfect for hackathons, offices, or places without internet.
+1.  **Host**: Select **LAN / Hotspot Mode** > **Host Room**. This automatically starts a server on your machine and generates a **Join Code**.
+2.  **Join**: Select **LAN / Hotspot Mode** > **Join Room** and enter the **Join Code** shared by the host.
+
+> **Note**: The **Join Code** (e.g., `SWIFT-TIGER-MTky...`) securely contains the IP address and Port info. Share this with friends on the same WiFi/Hotspot to connect instantly!
+
 ## Core Features
 *   **End-to-End Encryption (E2EE)**: Messages are encrypted and decrypted locally on your machine. The server only broadcasts encrypted data and has no access to your plain text conversations.
 *   **Room Partitioning**: Support for multiple isolated chat rooms on a single server.
+*   **Zero-Knowledge Privacy**: Room names are hashed (MD5) before sending to the server. The server admin cannot see your actual room topic.
 *   **Interactive Interface**: A clean terminal experience featuring easy navigation and clear status updates.
 *   **Lightweight Design**: Built with native Node.js modules for high performance and minimal dependencies.
 
 ## Available Commands
 *   `/exit` - Securely leave the chat session and close the connection.
 *   `/cls` - Clear the terminal screen and refresh the header display.
+*   `/info` - **(Host Only)** Toggle the Host Panel to view/hide the Secret Key and Join Code.
+*   `/users` - Check how many users are currently online in the room.
 
 ## Why Developers Love This 🚀
 
