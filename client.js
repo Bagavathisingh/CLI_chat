@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 const WebSocket = require('ws');
 const readline = require('readline');
 const chalk = require('chalk');
@@ -38,7 +39,6 @@ const decodeRoomCode = (code) => {
     }
 };
 
-// Get local IP address for hotspot mode
 const getLocalIP = () => {
     const interfaces = os.networkInterfaces();
     for (const name of Object.keys(interfaces)) {
@@ -192,14 +192,13 @@ rl.question(chalk.cyan('Enter your username: '), (user) => {
                             serverProcess.unref();
 
                             setTimeout(() => {
-                                // Pass host details
+
                                 connectToRoom(LOCAL_URL, 'LAN Host', { code: roomCode, key: rawKey });
                             }, 1500);
                         });
                     });
 
                 } else {
-                    // JOIN MODE
                     renderHeader();
                     console.log(chalk.cyan.bold('╔═══════════════════════════════════════════════╗'));
                     console.log(chalk.cyan.bold('║              JOIN A GROUP CHAT                ║'));
@@ -258,11 +257,7 @@ function connectToRoom(targetUrl, modeName, hostDetails = null) {
     let chatHistory = [];
     let showHostPanel = false;
 
-    // Helper to redraw the entire screen
     const drawUI = () => {
-        // Only redraw if we are in a mode that needs it (like Host with panel toggled)
-        // or just always redraw to keep it clean.
-        // For simplicity: always clear and redraw.
 
         console.clear();
         renderHeader();
@@ -270,7 +265,7 @@ function connectToRoom(targetUrl, modeName, hostDetails = null) {
         console.log(chalk.green.bold(`[CONNECTED] Room: ${roomName} (${modeName})`));
         console.log(chalk.gray('Messages are end-to-end encrypted.\n'));
 
-        // Host Panel
+ 
         if (hostDetails && showHostPanel) {
             console.log(chalk.cyan.bold('┌──────────────── HOST PANEL ────────────────┐'));
             console.log(chalk.cyan.bold('│') + chalk.white(` Join Code : ${chalk.bold(hostDetails.code.padEnd(28))} `) + chalk.cyan.bold('│'));
