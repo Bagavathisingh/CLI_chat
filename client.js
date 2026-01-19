@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 const WebSocket = require('ws');
 const readline = require('readline');
 const chalk = require('chalk');
@@ -39,6 +38,7 @@ const decodeRoomCode = (code) => {
     }
 };
 
+// Get local IP address for hotspot mode
 const getLocalIP = () => {
     const interfaces = os.networkInterfaces();
     for (const name of Object.keys(interfaces)) {
@@ -158,7 +158,7 @@ rl.question(chalk.cyan('Enter your username: '), (user) => {
 
             showMenu(['Host Room (Generate Join Code)', 'Join Room (Enter Code)'], (hotspotChoice) => {
                 if (hotspotChoice === 0) {
-
+                    // HOST MODE
                     renderHeader();
                     console.log(chalk.green.bold('╔═══════════════════════════════════════════════╗'));
                     console.log(chalk.green.bold('║         CREATE A GROUP CHAT ROOM              ║'));
@@ -168,7 +168,8 @@ rl.question(chalk.cyan('Enter your username: '), (user) => {
                         roomName = room.trim() || 'general';
 
                         rl.question(chalk.cyan('Enter Secret Key (for encryption): '), (key) => {
-                            secretKey = getDerivedKey(key || 'default-secret');
+                            const rawKey = key || 'default-secret';
+                            secretKey = getDerivedKey(rawKey);
 
                             const roomCode = generateRoomCode(localIP, '3000', roomName);
 
@@ -191,17 +192,20 @@ rl.question(chalk.cyan('Enter your username: '), (user) => {
                             serverProcess.unref();
 
                             setTimeout(() => {
-                                connectToRoom(LOCAL_URL, 'LAN Host');
+                                // Pass host details
+                                connectToRoom(LOCAL_URL, 'LAN Host', { code: roomCode, key: rawKey });
                             }, 1500);
                         });
                     });
 
                 } else {
-
+                    // JOIN MODE
                     renderHeader();
                     console.log(chalk.cyan.bold('╔═══════════════════════════════════════════════╗'));
                     console.log(chalk.cyan.bold('║              JOIN A GROUP CHAT                ║'));
                     console.log(chalk.cyan.bold('╚═══════════════════════════════════════════════╝\n'));
+
+                    console.log(chalk.gray('Tip: Ask the host for the Join Code (e.g., SWIFT-TIGER-xxx)'));
 
                     rl.question(chalk.cyan('Enter JOIN CODE: '), (code) => {
                         const connectionInfo = decodeRoomCode(code.trim());
@@ -239,7 +243,8 @@ rl.question(chalk.cyan('Enter your username: '), (user) => {
                     roomName = room.trim() || 'general';
 
                     rl.question(chalk.cyan('Enter Secret Room Key: '), (key) => {
-                        secretKey = getDerivedKey(key || 'default-secret');
+                        const rawKey = key || 'default-secret';
+                        secretKey = getDerivedKey(rawKey);
                         connectToRoom(targetUrl, modeName);
                     });
                 });
@@ -248,16 +253,57 @@ rl.question(chalk.cyan('Enter your username: '), (user) => {
     });
 });
 
-function connectToRoom(targetUrl, modeName) {
+function connectToRoom(targetUrl, modeName, hostDetails = null) {
     currentWs = new WebSocket(targetUrl);
+    let chatHistory = [];
+    let showHostPanel = false;
 
-    currentWs.on('open', () => {
+    // Helper to redraw the entire screen
+    const drawUI = () => {
+        // Only redraw if we are in a mode that needs it (like Host with panel toggled)
+        // or just always redraw to keep it clean.
+        // For simplicity: always clear and redraw.
+
+        console.clear();
         renderHeader();
+
         console.log(chalk.green.bold(`[CONNECTED] Room: ${roomName} (${modeName})`));
         console.log(chalk.gray('Messages are end-to-end encrypted.\n'));
 
+        // Host Panel
+        if (hostDetails && showHostPanel) {
+            console.log(chalk.cyan.bold('┌──────────────── HOST PANEL ────────────────┐'));
+            console.log(chalk.cyan.bold('│') + chalk.white(` Join Code : ${chalk.bold(hostDetails.code.padEnd(28))} `) + chalk.cyan.bold('│'));
+            console.log(chalk.cyan.bold('│') + chalk.white(` Secret Key: ${chalk.bold(hostDetails.key.padEnd(28))} `) + chalk.cyan.bold('│'));
+            console.log(chalk.cyan.bold('└────────────────────────────────────────────┘'));
+            console.log(chalk.gray(' (Type /info to hide this panel)\n'));
+        } else if (hostDetails) {
+            console.log(chalk.gray(' [Type /info to view Room Code & Key] \n'));
+        }
+
+        // Print History
+        // We limit history to fit reasonable screen space if needed, 
+        // but for now let's just print all (scrolling handles it)
+        const maxHistory = 50;
+        const visibleHistory = chatHistory.slice(-maxHistory);
+
+        visibleHistory.forEach(msg => {
+            process.stdout.write(msg + '\n');
+        });
+
+        // Ensure prompt is at bottom
+        rl.prompt(true);
+    };
+
+    // Helper to log a message
+    const logMessage = (msg) => {
+        chatHistory.push(msg);
+        drawUI();
+    };
+
+    currentWs.on('open', () => {
+        drawUI();
         currentWs.send(JSON.stringify({ type: 'join', room: roomName }));
-        rl.prompt();
     });
 
     currentWs.on('message', (data) => {
@@ -266,31 +312,15 @@ function connectToRoom(targetUrl, modeName) {
             if (payload.type === 'chat') {
                 const decryptedMessage = decrypt(payload.message, secretKey);
                 if (decryptedMessage) {
-                    readline.cursorTo(process.stdout, 0);
-                    readline.clearLine(process.stdout, 0);
                     const timestamp = chalk.gray(`[${new Date().toLocaleTimeString()}] `);
-                    process.stdout.write(`${timestamp}${decryptedMessage}\n`);
-                    rl.prompt(true);
-                } else {
-                    readline.cursorTo(process.stdout, 0);
-                    readline.clearLine(process.stdout, 0);
-                    console.log(chalk.red('[SYSTEM] Failed to decrypt. Check your Secret Key!'));
-                    rl.prompt(true);
+                    logMessage(`${timestamp}${decryptedMessage}`);
                 }
             } else if (payload.type === 'system') {
-                readline.cursorTo(process.stdout, 0);
-                readline.clearLine(process.stdout, 0);
-                console.log(chalk.yellow(`[SYSTEM] ${payload.message}`));
-                rl.prompt(true);
+                logMessage(chalk.yellow(`[SYSTEM] ${payload.message}`));
             } else if (payload.type === 'userCount') {
-                readline.cursorTo(process.stdout, 0);
-                readline.clearLine(process.stdout, 0);
-                console.log(chalk.cyan(`[ROOM] ${payload.count} user(s) online in this room`));
-                rl.prompt(true);
+                logMessage(chalk.cyan(`[ROOM] ${payload.count} user(s) online`));
             }
-        } catch (e) {
-            // Ignore parse errors
-        }
+        } catch (e) { }
     });
 
     currentWs.on('close', () => {
@@ -299,37 +329,49 @@ function connectToRoom(targetUrl, modeName) {
     });
 
     currentWs.on('error', (err) => {
-        readline.cursorTo(process.stdout, 0);
-        readline.clearLine(process.stdout, 0);
         console.error(chalk.red(`\n[CONNECTION ERROR] ${err.message}`));
-        console.log(chalk.yellow('\nTip: Make sure the host has started their server.'));
         process.exit();
     });
 
     rl.on('line', (line) => {
         const message = line.trim();
-        process.stdout.write('\x1B[1A\x1B[2K');
+
+        // Don't print the input line itself (readline does it, but we clear it in drawUI anyway)
+        // Ideally we want to prevent double-printing. 
+        // process.stdout.write('\x1B[1A\x1B[2K'); // Clear input line
 
         if (message.toLowerCase() === '/exit') {
             currentWs.close();
             return;
         }
         if (message.toLowerCase() === '/cls') {
-            renderHeader();
-            console.log(chalk.green.bold(`[CONNECTED] Room: ${roomName}`));
-            rl.prompt();
+            chatHistory = [];
+            drawUI();
+            return;
+        }
+        if (message.toLowerCase() === '/info' && hostDetails) {
+            showHostPanel = !showHostPanel;
+            drawUI();
             return;
         }
         if (message.toLowerCase() === '/users') {
             currentWs.send(JSON.stringify({ type: 'getUserCount' }));
-            rl.prompt();
             return;
         }
+
         if (message && currentWs.readyState === WebSocket.OPEN) {
             const formattedMessage = `${chalk.green.bold(username)}: ${message}`;
             const encryptedMessage = encrypt(formattedMessage, secretKey);
+
+            // Send to server
             currentWs.send(JSON.stringify({ type: 'chat', message: encryptedMessage }));
+
+            // Log locally (Echo)
+            const timestamp = chalk.gray(`[${new Date().toLocaleTimeString()}] `);
+            logMessage(`${timestamp}${formattedMessage}`);
+        } else {
+            // refresh ui if empty line
+            drawUI();
         }
-        rl.prompt();
     });
 }
