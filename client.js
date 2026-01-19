@@ -4,8 +4,42 @@ const readline = require('readline');
 const chalk = require('chalk');
 const crypto = require('crypto');
 const os = require('os');
+const pkg = require('./package.json');
 
-const PUBLIC_URL = 'wss://cli-chat-dsfi.onrender.com';
+const args = process.argv.slice(2);
+let customServer = null;
+let customUser = null;
+
+if (args.includes('--help') || args.includes('-h')) {
+    console.log(chalk.green.bold('Bugzx Secure Chat - CLI Tool'));
+    console.log(`Version: ${pkg.version}\n`);
+    console.log('Usage: bugzx-chat [options]\n');
+    console.log('Options:');
+    console.log('  -v, --version       Show version number');
+    console.log('  -h, --help          Show this help message');
+    console.log('  --server <url>      Set custom WebSocket server URL');
+    console.log('  -u, --username <name> Set username immediately');
+    console.log('\nExamples:');
+    console.log('  bugzx-chat --server wss://my-chat.com');
+    console.log('  bugzx-chat --username Alice');
+    process.exit(0);
+}
+
+if (args.includes('--version') || args.includes('-v') || args.includes('-version')) {
+    console.log(pkg.version);
+    process.exit(0);
+}
+
+for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--server' && args[i + 1]) {
+        customServer = args[i + 1];
+    }
+    if ((args[i] === '--username' || args[i] === '-u') && args[i + 1]) {
+        customUser = args[i + 1];
+    }
+}
+
+const PUBLIC_URL = customServer || 'wss://cli-chat-dsfi.onrender.com';
 const LOCAL_URL = 'ws://localhost:3000';
 const ALGORITHM = 'aes-128-cbc';
 
@@ -89,6 +123,7 @@ const renderHeader = () => {
     `));
     console.log(chalk.green.bold('      WELCOME TO THE SECURE CLI CHAT BOX       '));
     console.log(chalk.yellow.bold('              Created by BUGZX                 \n'));
+    if (username) console.log(chalk.cyan(`                 User: ${username}                 \n`));
 };
 
 const showMenu = (options, callback) => {
@@ -139,8 +174,7 @@ const rl = readline.createInterface({
 
 renderHeader();
 
-rl.question(chalk.cyan('Enter your username: '), (user) => {
-    username = user.trim() || 'Anonymous';
+const runMainApp = () => {
 
     showMenu(['Local Mode (localhost)', 'Public Mode (Online Server)', 'LAN / Hotspot Mode (WiFi Network)'], (modeIdx) => {
 
@@ -250,7 +284,17 @@ rl.question(chalk.cyan('Enter your username: '), (user) => {
             });
         }
     });
-});
+};
+
+if (customUser) {
+    username = customUser;
+    runMainApp();
+} else {
+    rl.question(chalk.cyan('Enter your username: '), (user) => {
+        username = user.trim() || 'Anonymous';
+        runMainApp();
+    });
+}
 
 function connectToRoom(targetUrl, modeName, hostDetails = null) {
     currentWs = new WebSocket(targetUrl);

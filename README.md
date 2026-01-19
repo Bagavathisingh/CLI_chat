@@ -40,6 +40,30 @@ Perfect for hackathons, offices, or places without internet.
 
 > **Note**: The **Join Code** (e.g., `SWIFT-TIGER-MTky...`) securely contains the IP address and Port info. Share this with friends on the same WiFi/Hotspot to connect instantly!
 
+## CLI Options
+
+You can pass arguments to customize the startup behavior.
+
+### Client (`bugzx-chat`)
+| Option | Description |
+| :--- | :--- |
+| `-h, --help` | Show help information |
+| `-v, --version` | Show current version |
+| `--server <url>` | Set a custom WebSocket server URL |
+| `-u, --username <name>` | Pre-fill username and skip prompt |
+
+**Example:**
+```bash
+bugzx-chat --username Alice --server wss://my-chat.com
+```
+
+### Server (`bugzx-chat-server`)
+| Option | Description |
+| :--- | :--- |
+| `-h, --help` | Show help information |
+| `-v, --version` | Show current version |
+| `-p, --port <number>` | Set the port to listen on (default: 3000) |
+
 ## Core Features
 *   **End-to-End Encryption (E2EE)**: Messages are encrypted and decrypted locally on your machine. The server only broadcasts encrypted data and has no access to your plain text conversations.
 *   **Room Partitioning**: Support for multiple isolated chat rooms on a single server.

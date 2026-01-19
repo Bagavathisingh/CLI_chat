@@ -3,7 +3,33 @@ const http = require('http');
 const WebSocket = require('ws');
 const chalk = require('chalk');
 
-const PORT = process.env.PORT || 3000;
+const pkg = require('./package.json');
+const args = process.argv.slice(2);
+
+if (args.includes('--help') || args.includes('-h')) {
+    console.log(chalk.green.bold('Bugzx Chat Server'));
+    console.log(`Version: ${pkg.version}`);
+    console.log('\nUsage: bugzx-chat-server [options]');
+    console.log('\nOptions:');
+    console.log('  -p, --port <number>  Set port to listen on');
+    console.log('  -v, --version        Show version');
+    console.log('  -h, --help           Show help');
+    process.exit(0);
+}
+
+if (args.includes('--version') || args.includes('-v')) {
+    console.log(pkg.version);
+    process.exit(0);
+}
+
+let customPort = null;
+for (let i = 0; i < args.length; i++) {
+    if ((args[i] === '--port' || args[i] === '-p') && args[i + 1]) {
+        customPort = args[i + 1];
+    }
+}
+
+const PORT = customPort || process.env.PORT || 3000;
 
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
