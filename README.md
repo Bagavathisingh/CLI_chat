@@ -9,7 +9,6 @@ You can install the package globally using npm:
 ```bash
 npm install -g @chat_cli/bugzx-secure-chat
 ```
-
 ## Getting Started
 
 ### 1. Start a Server
@@ -43,6 +42,22 @@ bugzx-chat
 ## Available Commands
 *   `/exit` - Securely leave the chat session and close the connection.
 *   `/cls` - Clear the terminal screen and refresh the header display.
+
+## Why Developers Love This 🚀
+
+As developers, moving your hand to the mouse to switch windows breaks flow. **BUGZX Secure Chat** keeps you in the zone.
+
+### 1. Zero Context Switching
+Alt-tabbing to Slack/Teams breaks your coding flow. With this tool, you chat right where you code. Keep a terminal tab open and communicate without ever leaving your IDE.
+
+### 2. True "Air-Gapped" Communication
+Working in a secure facility or a hackathon with bad WiFi? Use **LAN/Hotspot Mode**. No internet required. Chat completely offline over a local network or direct WiFi hotspot connection.
+
+### 3. Share Secrets Securely
+Need to send an `AWS_SECRET_KEY`? Pasting it in Slack saves it on their cloud forever. With our **End-to-End Encryption**, messages are encrypted *before* they leave your machine. Even the relay server sees only garbage text.
+
+### 4. Instant Ephemeral Rooms
+No admin permissions needed. Just run `bugzx-chat`, type a room name `debug-session-404`, share the key, and you have an instant war room. Close the terminal, and it's gone forever.
 
 ---
 **Developed by BUGZX**
