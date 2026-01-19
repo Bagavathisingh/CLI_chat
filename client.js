@@ -3,6 +3,7 @@ const WebSocket = require('ws');
 const readline = require('readline');
 const chalk = require('chalk');
 const crypto = require('crypto');
+const os = require('os');
 
 const PUBLIC_URL = 'wss://cli-chat-dsfi.onrender.com';
 const LOCAL_URL = 'ws://localhost:3000';
@@ -12,6 +13,43 @@ let username = '';
 let roomName = '';
 let secretKey = '';
 let currentWs = null;
+
+const ADJECTIVES = ['SWIFT', 'BRAVE', 'QUIET', 'HAPPY', 'LUCKY', 'SMART', 'NOBLE', 'RAPID', 'CALM', 'BOLD'];
+const NOUNS = ['TIGER', 'EAGLE', 'WOLF', 'HAWK', 'BEAR', 'LION', 'FALCON', 'SHARK', 'DRAGON', 'PHOENIX'];
+
+const generateRoomCode = (ip, port, room) => {
+    const data = `${ip}:${port}:${room}`;
+    const encoded = Buffer.from(data).toString('base64');
+    const hash = crypto.createHash('md5').update(data).digest('hex').substring(0, 4).toUpperCase();
+    const adj = ADJECTIVES[parseInt(hash.substring(0, 2), 16) % ADJECTIVES.length];
+    const noun = NOUNS[parseInt(hash.substring(2, 4), 16) % NOUNS.length];
+    return `${adj}-${noun}-${encoded}`;
+};
+
+const decodeRoomCode = (code) => {
+    try {
+        const parts = code.split('-');
+        if (parts.length < 3) return null;
+        const encoded = parts.slice(2).join('-');
+        const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+        const [ip, port, room] = decoded.split(':');
+        return { ip, port, room };
+    } catch (e) {
+        return null;
+    }
+};
+
+const getLocalIP = () => {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                return iface.address;
+            }
+        }
+    }
+    return '127.0.0.1';
+};
 
 const getDerivedKey = (secret) => {
     return crypto.createHash('md5').update(secret).digest();
@@ -45,7 +83,7 @@ const renderHeader = () => {
   ██████╗██╗     ██╗    ██████╗██╗  ██╗ █████╗ ████████╗
  ██╔════╝██║     ██║   ██╔════╝██║  ██║██╔══██╗╚══██╔══╝
  ██║     ██║     ██║   ██║     ███████║███████║   ██║   
- ██║     ██║     ██║   ██║     ██╔══██║██╔══██╗   ██║   
+ ██║     ██║     ██║   ██║     ██╔══██║██╔══██║   ██║   
  ╚██████╗███████╗██║   ╚██████╗██║  ██║██║  ██║   ██║   
   ╚═════╝╚══════╝╚═╝    ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   
     `));
@@ -104,89 +142,194 @@ renderHeader();
 rl.question(chalk.cyan('Enter your username: '), (user) => {
     username = user.trim() || 'Anonymous';
 
-    showMenu(['Local Mode (localhost)', 'Public Mode (Online Server)'], (modeIdx) => {
-        const targetUrl = modeIdx === 0 ? LOCAL_URL : PUBLIC_URL;
+    showMenu(['Local Mode (localhost)', 'Public Mode (Online Server)', 'LAN / Hotspot Mode (WiFi Network)'], (modeIdx) => {
 
-        showMenu(['Create a Room', 'Join a Room'], (choiceIdx) => {
+        if (modeIdx === 2) {
+            const localIP = getLocalIP();
             renderHeader();
-            const action = choiceIdx === 0 ? 'Create' : 'Join';
-            console.log(chalk.yellow(`Mode: ${modeIdx === 0 ? 'Local' : 'Public'} | Action: ${action} Room\n`));
+            console.log(chalk.yellow.bold('═══════════════════════════════════════════════'));
+            console.log(chalk.cyan.bold('          LAN / HOTSPOT MODE SELECTED            '));
+            console.log(chalk.yellow.bold('═══════════════════════════════════════════════\n'));
+            console.log(chalk.white('Your Local IP: ') + chalk.green.bold(localIP));
+            console.log(chalk.gray('\nMultiple users can join the same room!\n'));
+            console.log(chalk.yellow('Options:'));
+            console.log(chalk.white('  1. HOST  - Create a room & share code'));
+            console.log(chalk.white('  2. JOIN  - Enter a room code to join\n'));
 
-            rl.question(chalk.cyan(`Enter Room Name to ${action}: `), (room) => {
-                roomName = room.trim() || 'general';
+            showMenu(['Host Room (Generate Join Code)', 'Join Room (Enter Code)'], (hotspotChoice) => {
+                if (hotspotChoice === 0) {
 
-                rl.question(chalk.cyan('Enter Secret Room Key: '), (key) => {
-                    secretKey = getDerivedKey(key || 'default-secret');
+                    renderHeader();
+                    console.log(chalk.green.bold('╔═══════════════════════════════════════════════╗'));
+                    console.log(chalk.green.bold('║         CREATE A GROUP CHAT ROOM              ║'));
+                    console.log(chalk.green.bold('╚═══════════════════════════════════════════════╝\n'));
 
-                    currentWs = new WebSocket(targetUrl);
+                    rl.question(chalk.cyan('Enter Room Name: '), (room) => {
+                        roomName = room.trim() || 'general';
 
-                    currentWs.on('open', () => {
-                        renderHeader();
-                        console.log(chalk.green.bold(`[CONNECTED] Room: ${roomName} (${modeIdx === 0 ? 'Local' : 'Public'})`));
-                        console.log(chalk.gray('Messages are end-to-end encrypted. Type "/exit" to leave.\n'));
+                        rl.question(chalk.cyan('Enter Secret Key (for encryption): '), (key) => {
+                            secretKey = getDerivedKey(key || 'default-secret');
 
-                        currentWs.send(JSON.stringify({ type: 'join', room: roomName }));
-                        rl.prompt();
-                    });
+                            const roomCode = generateRoomCode(localIP, '3000', roomName);
 
-                    currentWs.on('message', (data) => {
-                        try {
-                            const payload = JSON.parse(data);
-                            if (payload.type === 'chat') {
-                                const decryptedMessage = decrypt(payload.message, secretKey);
-                                if (decryptedMessage) {
-                                    readline.cursorTo(process.stdout, 0);
-                                    readline.clearLine(process.stdout, 0);
-                                    const timestamp = chalk.gray(`[${new Date().toLocaleTimeString()}] `);
-                                    process.stdout.write(`${timestamp}${decryptedMessage}\n`);
-                                    rl.prompt(true);
-                                } else {
-                                    readline.cursorTo(process.stdout, 0);
-                                    readline.clearLine(process.stdout, 0);
-                                    console.log(chalk.red('[SYSTEM] Received encrypted message but failed to decrypt. Check your Secret Key!'));
-                                    rl.prompt(true);
-                                }
-                            }
-                        } catch (e) {
-                            // Invalid JSON
-                        }
-                    });
-
-                    currentWs.on('close', () => {
-                        console.log(chalk.red('\n[DISCONNECTED] Server connection closed.'));
-                        process.exit();
-                    });
-
-                    currentWs.on('error', (err) => {
-                        readline.cursorTo(process.stdout, 0);
-                        readline.clearLine(process.stdout, 0);
-                        console.error(chalk.red(`\n[CONNECTION ERROR] ${err.message}`));
-                        process.exit();
-                    });
-
-                    rl.on('line', (line) => {
-                        const message = line.trim();
-                        process.stdout.write('\x1B[1A\x1B[2K');
-
-                        if (message.toLowerCase() === '/exit') {
-                            currentWs.close();
-                            return;
-                        }
-                        if (message.toLowerCase() === '/cls') {
                             renderHeader();
-                            console.log(chalk.green.bold(`[CONNECTED] Room: ${roomName}`));
-                            rl.prompt();
+                            console.log(chalk.green.bold('╔═══════════════════════════════════════════════╗'));
+                            console.log(chalk.green.bold('║              ROOM CREATED!                    ║'));
+                            console.log(chalk.green.bold('╚═══════════════════════════════════════════════╝\n'));
+
+                            console.log(chalk.yellow.bold('Share this JOIN CODE with friends:\n'));
+                            console.log(chalk.bgGreen.black.bold(`  ${roomCode}  `));
+                            console.log(chalk.gray('\n(Friends also need the Secret Key to decrypt messages)\n'));
+                            console.log(chalk.cyan('Starting server & connecting...\n'));
+
+                            const { spawn } = require('child_process');
+                            const serverPath = require('path').join(__dirname, 'server.js');
+                            const serverProcess = spawn('node', [serverPath], {
+                                detached: true,
+                                stdio: 'ignore'
+                            });
+                            serverProcess.unref();
+
+                            setTimeout(() => {
+                                connectToRoom(LOCAL_URL, 'LAN Host');
+                            }, 1500);
+                        });
+                    });
+
+                } else {
+
+                    renderHeader();
+                    console.log(chalk.cyan.bold('╔═══════════════════════════════════════════════╗'));
+                    console.log(chalk.cyan.bold('║              JOIN A GROUP CHAT                ║'));
+                    console.log(chalk.cyan.bold('╚═══════════════════════════════════════════════╝\n'));
+
+                    rl.question(chalk.cyan('Enter JOIN CODE: '), (code) => {
+                        const connectionInfo = decodeRoomCode(code.trim());
+
+                        if (!connectionInfo) {
+                            console.log(chalk.red('\n[ERROR] Invalid room code! Please check and try again.'));
+                            process.exit();
                             return;
                         }
-                        if (message && currentWs.readyState === WebSocket.OPEN) {
-                            const formattedMessage = `${chalk.green.bold(username)}: ${message}`;
-                            const encryptedMessage = encrypt(formattedMessage, secretKey);
-                            currentWs.send(JSON.stringify({ type: 'chat', message: encryptedMessage }));
-                        }
-                        rl.prompt();
+
+                        roomName = connectionInfo.room;
+                        const targetUrl = `ws://${connectionInfo.ip}:${connectionInfo.port}`;
+
+                        console.log(chalk.gray(`\nConnecting to: ${connectionInfo.ip}:${connectionInfo.port}`));
+                        console.log(chalk.gray(`Room: ${roomName}\n`));
+
+                        rl.question(chalk.cyan('Enter Secret Key (same as host): '), (key) => {
+                            secretKey = getDerivedKey(key || 'default-secret');
+                            connectToRoom(targetUrl, 'LAN Guest');
+                        });
+                    });
+                }
+            });
+        } else {
+            // Local or Public Mode
+            const targetUrl = modeIdx === 0 ? LOCAL_URL : PUBLIC_URL;
+            const modeName = modeIdx === 0 ? 'Local' : 'Public';
+
+            showMenu(['Create a Room', 'Join a Room'], (choiceIdx) => {
+                renderHeader();
+                const action = choiceIdx === 0 ? 'Create' : 'Join';
+                console.log(chalk.yellow(`Mode: ${modeName} | Action: ${action} Room\n`));
+
+                rl.question(chalk.cyan(`Enter Room Name to ${action}: `), (room) => {
+                    roomName = room.trim() || 'general';
+
+                    rl.question(chalk.cyan('Enter Secret Room Key: '), (key) => {
+                        secretKey = getDerivedKey(key || 'default-secret');
+                        connectToRoom(targetUrl, modeName);
                     });
                 });
             });
-        });
+        }
     });
 });
+
+function connectToRoom(targetUrl, modeName) {
+    currentWs = new WebSocket(targetUrl);
+
+    currentWs.on('open', () => {
+        renderHeader();
+        console.log(chalk.green.bold(`[CONNECTED] Room: ${roomName} (${modeName})`));
+        console.log(chalk.gray('Messages are end-to-end encrypted.\n'));
+
+        currentWs.send(JSON.stringify({ type: 'join', room: roomName }));
+        rl.prompt();
+    });
+
+    currentWs.on('message', (data) => {
+        try {
+            const payload = JSON.parse(data);
+            if (payload.type === 'chat') {
+                const decryptedMessage = decrypt(payload.message, secretKey);
+                if (decryptedMessage) {
+                    readline.cursorTo(process.stdout, 0);
+                    readline.clearLine(process.stdout, 0);
+                    const timestamp = chalk.gray(`[${new Date().toLocaleTimeString()}] `);
+                    process.stdout.write(`${timestamp}${decryptedMessage}\n`);
+                    rl.prompt(true);
+                } else {
+                    readline.cursorTo(process.stdout, 0);
+                    readline.clearLine(process.stdout, 0);
+                    console.log(chalk.red('[SYSTEM] Failed to decrypt. Check your Secret Key!'));
+                    rl.prompt(true);
+                }
+            } else if (payload.type === 'system') {
+                readline.cursorTo(process.stdout, 0);
+                readline.clearLine(process.stdout, 0);
+                console.log(chalk.yellow(`[SYSTEM] ${payload.message}`));
+                rl.prompt(true);
+            } else if (payload.type === 'userCount') {
+                readline.cursorTo(process.stdout, 0);
+                readline.clearLine(process.stdout, 0);
+                console.log(chalk.cyan(`[ROOM] ${payload.count} user(s) online in this room`));
+                rl.prompt(true);
+            }
+        } catch (e) {
+            // Ignore parse errors
+        }
+    });
+
+    currentWs.on('close', () => {
+        console.log(chalk.red('\n[DISCONNECTED] Server connection closed.'));
+        process.exit();
+    });
+
+    currentWs.on('error', (err) => {
+        readline.cursorTo(process.stdout, 0);
+        readline.clearLine(process.stdout, 0);
+        console.error(chalk.red(`\n[CONNECTION ERROR] ${err.message}`));
+        console.log(chalk.yellow('\nTip: Make sure the host has started their server.'));
+        process.exit();
+    });
+
+    rl.on('line', (line) => {
+        const message = line.trim();
+        process.stdout.write('\x1B[1A\x1B[2K');
+
+        if (message.toLowerCase() === '/exit') {
+            currentWs.close();
+            return;
+        }
+        if (message.toLowerCase() === '/cls') {
+            renderHeader();
+            console.log(chalk.green.bold(`[CONNECTED] Room: ${roomName}`));
+            rl.prompt();
+            return;
+        }
+        if (message.toLowerCase() === '/users') {
+            currentWs.send(JSON.stringify({ type: 'getUserCount' }));
+            rl.prompt();
+            return;
+        }
+        if (message && currentWs.readyState === WebSocket.OPEN) {
+            const formattedMessage = `${chalk.green.bold(username)}: ${message}`;
+            const encryptedMessage = encrypt(formattedMessage, secretKey);
+            currentWs.send(JSON.stringify({ type: 'chat', message: encryptedMessage }));
+        }
+        rl.prompt();
+    });
+}

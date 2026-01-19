@@ -5,13 +5,12 @@ const chalk = require('chalk');
 
 const PORT = process.env.PORT || 3000;
 
-// 1. Create a standard HTTP server to satisfy Render's health checks
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end(' Secure Chat Server is Online');
 });
 
-// 2. Attach WebSocket server to the SAME port
+
 const wss = new WebSocket.Server({ server });
 
 const rooms = new Map();
@@ -29,7 +28,15 @@ wss.on('connection', (ws) => {
                     rooms.set(clientRoom, new Set());
                 }
                 rooms.get(clientRoom).add(ws);
-                console.log(chalk.yellow(`[SERVER] User joined room: ${chalk.bold(clientRoom)}`));
+                console.log(chalk.yellow(`[SERVER] User joined room: ${chalk.bold(clientRoom)} (${rooms.get(clientRoom).size} users)`));
+
+                const clientsInRoom = rooms.get(clientRoom);
+                clientsInRoom.forEach((client) => {
+                    if (client !== ws && client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify({ type: 'system', message: 'A new user joined the room!' }));
+                    }
+                });
+
             } else if (payload.type === 'chat' && clientRoom) {
                 const clientsInRoom = rooms.get(clientRoom);
                 if (clientsInRoom) {
@@ -39,6 +46,9 @@ wss.on('connection', (ws) => {
                         }
                     });
                 }
+            } else if (payload.type === 'getUserCount' && clientRoom) {
+                const count = rooms.has(clientRoom) ? rooms.get(clientRoom).size : 0;
+                ws.send(JSON.stringify({ type: 'userCount', count: count }));
             }
         } catch (e) { }
     });
@@ -51,7 +61,6 @@ wss.on('connection', (ws) => {
     });
 });
 
-// 3. Start listening
 server.listen(PORT, () => {
     console.clear();
     console.log(chalk.yellow(`CLI_CHAT (Hybrid WebSocket/HTTP Mode)`));
