@@ -33,12 +33,12 @@ bugzx-chat
 5.  **Room Name**: Specify the unique name for your private space.
 6.  **Secret Key**: Enter your encryption passphrase. Only users with the exact same Room Name and Secret Key can decrypt and read the messages.
 
-### LAN / Hotspot Mode (Offline) 🌐
+### LAN / Hotspot Mode (Offline) 
 Perfect for hackathons, offices, or places without internet.
 1.  **Host**: Select **LAN / Hotspot Mode** > **Host Room**. This automatically starts a server on your machine and generates a **Join Code**.
 2.  **Join**: Select **LAN / Hotspot Mode** > **Join Room** and enter the **Join Code** shared by the host.
 
-> **Note**: The **Join Code** (e.g., `SWIFT-TIGER-MTky...`) securely contains the IP address and Port info. Share this with friends on the same WiFi/Hotspot to connect instantly!
+> **Note**: The **Join Code** (e.g., `SXXx-Xxxx-Xxxxx...`) securely contains the IP address and Port info. Share this with friends on the same WiFi/Hotspot to connect instantly!
 
 ## CLI Options
 
@@ -77,7 +77,7 @@ bugzx-chat --username Alice --server wss://my-chat.com
 *   `/info` - **(Host Only)** Toggle the Host Panel to view/hide the Secret Key and Join Code.
 *   `/users` - Check how many users are currently online in the room.
 
-## Why Developers Love This 🚀
+## Why Developers Love This 
 
 As developers, moving your hand to the mouse to switch windows breaks flow. **BUGZX Secure Chat** keeps you in the zone.
 
