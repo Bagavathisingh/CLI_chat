@@ -1,4 +1,4 @@
-# Bugzx Secure Chat
+# Bugzx Chat
 
 A professional, end-to-end encrypted command-line interface chat application. This tool allows users to communicate securely across terminals using a structured room system.
 
@@ -7,7 +7,9 @@ A professional, end-to-end encrypted command-line interface chat application. Th
 You can install the package globally using npm:
 
 ```bash
-npm install -g @chat_cli/bugzx-secure-chat
+npm install -g @chat_cli/bugzx-chat
+(or)
+npm install -g @chat_cli/bugzx-chat@latest
 ```
 ## Getting Started
 
